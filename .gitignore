@@ -1,0 +1,16 @@
+# Build files
+build/
+.gradle/
+*.class
+
+# IntelliJ files
+.idea/
+*.iml
+*.iws
+
+# Sensitive files - IMPORTANT!
+src/main/resources/application.properties
+
+# Logs
+*.log
+logs/

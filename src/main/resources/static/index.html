@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CollabNotes — Real-time Collaborative Notes</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* TOP NAVBAR */
+        .navbar {
+            background: #1e293b;
+            padding: 0 24px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #334155;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            font-weight: 700;
+            color: #6366f1;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .status-connected {
+            background: rgba(34,197,94,0.15);
+            color: #22c55e;
+            border: 1px solid rgba(34,197,94,0.3);
+        }
+
+        .status-connected .status-dot { background: #22c55e; animation: pulse 2s infinite; }
+
+        .status-disconnected {
+            background: rgba(239,68,68,0.15);
+            color: #ef4444;
+            border: 1px solid rgba(239,68,68,0.3);
+        }
+
+        .status-disconnected .status-dot { background: #ef4444; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* MAIN LAYOUT */
+        .main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* LEFT SIDEBAR */
+        .sidebar {
+            width: 260px;
+            background: #1e293b;
+            border-right: 1px solid #334155;
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            gap: 12px;
+        }
+
+        .sidebar-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 4px;
+        }
+
+        .login-section {
+            background: #0f172a;
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid #334155;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .input-field {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: #e2e8f0;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-field:focus {
+            border-color: #6366f1;
+        }
+
+        .input-field::placeholder { color: #475569; }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(99,102,241,0.4);
+        }
+
+        .btn-danger {
+            background: rgba(239,68,68,0.15);
+            color: #ef4444;
+            border: 1px solid rgba(239,68,68,0.3);
+            margin-top: 6px;
+        }
+
+        .btn-danger:hover { background: rgba(239,68,68,0.25); }
+
+        /* ONLINE USERS */
+        .users-section {
+            background: #0f172a;
+            border-radius: 12px;
+            padding: 14px;
+            border: 1px solid #334155;
+            flex: 1;
+        }
+
+        .user-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 0;
+            font-size: 13px;
+            color: #94a3b8;
+            border-bottom: 1px solid #1e293b;
+        }
+
+        .user-item:last-child { border-bottom: none; }
+
+        .user-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        /* MAIN EDITOR */
+        .editor-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #0f172a;
+        }
+
+        .editor-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #1e293b;
+        }
+
+        .note-title-input {
+            background: transparent;
+            border: none;
+            font-size: 20px;
+            font-weight: 600;
+            color: #e2e8f0;
+            outline: none;
+            flex: 1;
+        }
+
+        .note-title-input::placeholder { color: #334155; }
+
+        .auto-save {
+            font-size: 11px;
+            color: #475569;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .editor-textarea {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 24px;
+            color: #cbd5e1;
+            font-size: 15px;
+            line-height: 1.8;
+            resize: none;
+            outline: none;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .editor-textarea::placeholder { color: #334155; }
+
+        /* ACTIVITY LOG */
+        .activity-section {
+            width: 240px;
+            background: #1e293b;
+            border-left: 1px solid #334155;
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+        }
+
+        .activity-log {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .activity-item {
+            background: #0f172a;
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 11px;
+            line-height: 1.5;
+            border-left: 3px solid #334155;
+        }
+
+        .activity-join { border-left-color: #22c55e; }
+        .activity-leave { border-left-color: #ef4444; }
+        .activity-edit { border-left-color: #6366f1; }
+
+        .activity-time {
+            color: #475569;
+            font-size: 10px;
+            display: block;
+            margin-top: 2px;
+        }
+
+        /* TYPING INDICATOR */
+        .typing-indicator {
+            padding: 8px 24px;
+            font-size: 12px;
+            color: #6366f1;
+            height: 28px;
+            font-style: italic;
+        }
+
+        /* SCROLLBAR */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+
+        .empty-state {
+            text-align: center;
+            color: #475569;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<div class="navbar">
+    <div class="logo">
+        <div class="logo-icon">📝</div>
+        CollabNotes
+    </div>
+    <div class="nav-right">
+        <div class="status-badge status-disconnected" id="statusBadge">
+            <div class="status-dot"></div>
+            <span id="statusText">Disconnected</span>
+        </div>
+    </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+    <!-- LEFT SIDEBAR -->
+    <div class="sidebar">
+        <div class="sidebar-title">Connection</div>
+
+        <div class="login-section">
+            <div class="input-group">
+                <input class="input-field" id="username"
+                       placeholder="Your name" type="text"/>
+                <input class="input-field" id="noteId"
+                       placeholder="Note ID" type="number" value="1"/>
+            </div>
+            <button class="btn btn-primary" onclick="connect()">
+                Connect
+            </button>
+            <button class="btn btn-danger" onclick="disconnect()">
+                Disconnect
+            </button>
+        </div>
+
+        <div class="sidebar-title">Online Users</div>
+        <div class="users-section">
+            <div id="usersList">
+                <div class="empty-state">No users online</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EDITOR -->
+    <div class="editor-section">
+        <div class="editor-header">
+            <input class="note-title-input"
+                   placeholder="Untitled Note..."
+                   id="noteTitle" type="text"/>
+            <div class="auto-save" id="autoSave">
+                ● Auto-saving...
+            </div>
+        </div>
+        <textarea class="editor-textarea" id="editor"
+                  placeholder="Start typing... your changes will sync in real-time with all connected users!"
+                  oninput="sendEdit()" disabled>
+        </textarea>
+        <div class="typing-indicator" id="typingIndicator"></div>
+    </div>
+
+    <!-- ACTIVITY -->
+    <div class="activity-section">
+        <div class="sidebar-title">Live Activity</div>
+        <div class="activity-log" id="activityLog">
+            <div class="empty-state">No activity yet</div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    let stompClient = null;
+    let currentUser = '';
+    let typingTimeout = null;
+    let onlineUsers = new Set();
+
+    function connect() {
+        currentUser = document.getElementById('username').value.trim();
+        const noteId = document.getElementById('noteId').value;
+
+        if (!currentUser) {
+            alert('Please enter your name!');
+            return;
+        }
+
+        const socket = new SockJS('/ws');
+        stompClient = Stomp.over(socket);
+        stompClient.debug = null;
+
+        stompClient.connect({}, function(frame) {
+            updateStatus(true);
+
+            stompClient.subscribe('/topic/notes', function(msg) {
+                const message = JSON.parse(msg.body);
+                handleMessage(message);
+            });
+
+            stompClient.send('/app/note.join', {},
+                JSON.stringify({
+                    noteId: noteId,
+                    username: currentUser,
+                    content: ''
+                })
+            );
+
+            document.getElementById('editor').disabled = false;
+            addActivity('join', currentUser + ' joined the note');
+            addOnlineUser(currentUser);
+        });
+    }
+
+    function disconnect() {
+        const noteId = document.getElementById('noteId').value;
+        if (stompClient) {
+            stompClient.send('/app/note.leave', {},
+                JSON.stringify({
+                    noteId: noteId,
+                    username: currentUser,
+                    content: ''
+                })
+            );
+            stompClient.disconnect();
+        }
+        updateStatus(false);
+        document.getElementById('editor').disabled = true;
+        removeOnlineUser(currentUser);
+        addActivity('leave', currentUser + ' left the note');
+        currentUser = '';
+    }
+
+    function sendEdit() {
+        const noteId = document.getElementById('noteId').value;
+        const content = document.getElementById('editor').value;
+
+        if (stompClient && stompClient.connected) {
+            stompClient.send('/app/note.edit', {},
+                JSON.stringify({
+                    noteId: noteId,
+                    username: currentUser,
+                    content: content
+                })
+            );
+        }
+
+        document.getElementById('autoSave').innerHTML = '✓ Saved';
+        setTimeout(() => {
+            document.getElementById('autoSave').innerHTML =
+                '● Auto-saving...';
+        }, 2000);
+    }
+
+    function handleMessage(message) {
+        if (message.type === 'EDIT' &&
+            message.username !== currentUser) {
+            document.getElementById('editor').value =
+                message.content;
+
+            document.getElementById('typingIndicator').textContent =
+                message.username + ' is typing...';
+
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                document.getElementById('typingIndicator')
+                    .textContent = '';
+            }, 2000);
+
+            addActivity('edit', message.username + ' edited');
+        }
+
+        if (message.type === 'JOIN') {
+            addOnlineUser(message.username);
+            addActivity('join', message.content);
+        }
+
+        if (message.type === 'LEAVE') {
+            removeOnlineUser(message.username);
+            addActivity('leave', message.content);
+        }
+    }
+
+    function addActivity(type, text) {
+        const log = document.getElementById('activityLog');
+        const time = new Date().toLocaleTimeString();
+
+        if (log.querySelector('.empty-state')) {
+            log.innerHTML = '';
+        }
+
+        const item = document.createElement('div');
+        item.className = 'activity-item activity-' + type;
+        item.innerHTML = text +
+            '<span class="activity-time">' + time + '</span>';
+
+        log.insertBefore(item, log.firstChild);
+
+        if (log.children.length > 20) {
+            log.removeChild(log.lastChild);
+        }
+    }
+
+    function addOnlineUser(username) {
+        onlineUsers.add(username);
+        updateUsersList();
+    }
+
+    function removeOnlineUser(username) {
+        onlineUsers.delete(username);
+        updateUsersList();
+    }
+
+    function updateUsersList() {
+        const list = document.getElementById('usersList');
+        if (onlineUsers.size === 0) {
+            list.innerHTML =
+                '<div class="empty-state">No users online</div>';
+            return;
+        }
+
+        list.innerHTML = '';
+        onlineUsers.forEach(user => {
+            const initials = user.substring(0, 2).toUpperCase();
+            list.innerHTML += `
+                <div class="user-item">
+                    <div class="user-avatar">${initials}</div>
+                    ${user}
+                </div>`;
+        });
+    }
+
+    function updateStatus(connected) {
+        const badge = document.getElementById('statusBadge');
+        const text = document.getElementById('statusText');
+        if (connected) {
+            badge.className = 'status-badge status-connected';
+            text.textContent = 'Connected as ' + currentUser;
+        } else {
+            badge.className = 'status-badge status-disconnected';
+            text.textContent = 'Disconnected';
+        }
+    }
+</script>
+</body>
+</html>
