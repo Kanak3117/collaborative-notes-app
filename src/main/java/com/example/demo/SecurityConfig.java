@@ -26,18 +26,23 @@ public class SecurityConfig {
                         .sessionCreationPolicy(
                                 SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Ye URLs bina login ke accessible
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/h2-console/**",
-                                "/index.html",        // ← YE ADD KARO
-                                "/",                  // ← YE ADD KARO
-                                "/ws/**",             // ← YE ADD KARO
-                                "/*.html",            // ← YE ADD KARO
-                                "/css/**",            // ← YE ADD KARO
-                                "/js/**"
+                                "/index.html",
+                                "/",
+                                "/ws/**",
+                                "/*.html",
+                                "/css/**",
+                                "/js/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**",
+                                "/v3/api-docs",
+                                "/swagger-resources/**",
+                                "/webjars/**",
+                                "/error"
                         ).permitAll()
-                        // Baaki sab ke liye login zaroori
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter,
