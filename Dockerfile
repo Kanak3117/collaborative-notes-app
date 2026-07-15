@@ -1,7 +1,10 @@
-spring.datasource.url=${jdbc:mysql://mysql.railway.internal:3306/railway?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
-spring.datasource.username=${root}
-spring.datasource.password=${JWiPKrPTqqtMYLEgYyNkxLJWATeDdTCo}
-spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
-spring.jpa.database-platform=org.hibernate.dialect.MySQLDialect
-spring.jpa.hibernate.ddl-auto=update
-server.port=${PORT:8080}
+FROM eclipse-temurin:17-jdk-alpine as build
+WORKDIR /app
+COPY . .
+RUN ./gradlew clean bootJar -x test
+
+FROM eclipse-temurin:17-jre-alpine
+WORKDIR /app
+COPY --from=build /app/build/libs/app.jar app.jar
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]
