@@ -10,7 +10,6 @@ build/
 
 # Sensitive files - IMPORTANT!
 src/main/resources/application.properties
-src/main/resources/application-prod.properties
 
 # Logs
 *.log
